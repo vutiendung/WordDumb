@@ -185,8 +185,8 @@
     "name": "Chinese",
     "spacy": "zh_core_web_"
   },
-  "vn": {
-    "gloss_source": "",
+  "vi": {
+    "gloss_source": "kaikki",
     "name": "Vietnamese",
     "spacy": "en_core_web_"
   }
