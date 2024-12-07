@@ -184,5 +184,10 @@
     "gloss_source": "kaikki",
     "name": "Chinese",
     "spacy": "zh_core_web_"
+  },
+  "vn": {
+    "gloss_source": "",
+    "name": "Vietnamese",
+    "spacy": "en_core_web_"
   }
 }

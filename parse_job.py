@@ -269,6 +269,7 @@ def create_files(data: ParseJobData, prefs: Prefs, notif: Any) -> None:
             if len(prefs["mediawiki_api"]) > 0
             else Wikidata(data.plugin_path, data.useragent)
         )
+        
         custom_x_ray = load_custom_x_desc(data.book_path)
 
     if is_epub:
@@ -646,7 +647,6 @@ def process_entity(text: str, lang: str, len_limit: int) -> str | None:
 
     return text
 
-
 def find_named_entity(
     start: int,
     x_ray: X_Ray | EPUB,
@@ -661,36 +661,28 @@ def find_named_entity(
     len_limit = 2 if lang in CJK_LANGS else 3
     starts = set()
     intervals = []
+
     for ent in filter(lambda x: x.label_ in NER_LABELS, doc.ents):
-        text = (
-            ent.ent_id_  # customized X-Ray
-            if ent.ent_id_
-            else process_entity(ent.text, lang, len_limit)
-        )
-        if text is None or (ent.ent_id_ and custom_x_ray.get(ent.ent_id_).omit):
+        # Process only if the entity is defined in custom_x_ray
+        if not ent.ent_id_ or ent.ent_id_ not in custom_x_ray:
             continue
 
-        ent_text = ent.text if ent.ent_id_ else text
-        if escaped_text is not None:
-            result = index_in_escaped_text(ent_text, escaped_text, ent.start_char)
-            if result is None:
-                continue
-            start_char, end_char = result
-            if start_char is None:
-                continue
-        elif not ent.ent_id_:
-            start_char = ent.start_char + ent.text.index(ent_text)
-            end_char = start_char + len(ent_text)
-        else:
-            start_char = ent.start_char
-            end_char = ent.end_char
+        # Check if the entity is marked to be omitted
+        if custom_x_ray.get(ent.ent_id_).omit:
+            continue
+
+        text = ent.ent_id_
+        start_char = ent.start_char
+        end_char = ent.end_char
         book_text = escaped_text if escaped_text else doc.text
         selectable_text = book_text[start_char:end_char]
+
+        # Avoid processing the same start position
         if start_char in starts:
             continue
-        else:
-            starts.add(start_char)
+        starts.add(start_char)
 
+        # If processing an EPUB, add the entity to the EPUB's x_ray
         if isinstance(x_ray, EPUB):
             x_ray.add_entity(
                 text,
@@ -705,9 +697,11 @@ def find_named_entity(
             intervals.append(Interval(start_char, end_char - 1))
             continue
 
-        # Include the next punctuation so the word can be selected on Kindle
+        # Include the next punctuation for selection on Kindle
         if re.match(r"[^\w\s]", book_text[end_char : end_char + 1]):
             selectable_text = book_text[start_char : end_char + 1]
+
+        # Adjust offsets for MOBI encoding
         if mobi_codec is not None and escaped_text is not None:
             ent_start = start + len(escaped_text[:start_char].encode(mobi_codec))
             ent_len = len(selectable_text.encode(mobi_codec))
